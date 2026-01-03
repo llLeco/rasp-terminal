@@ -2,7 +2,8 @@
 FROM node:20-alpine AS client-builder
 WORKDIR /app/client
 COPY client/package*.json ./
-RUN npm ci
+# Force install all deps including devDependencies (ignore NODE_ENV)
+RUN npm ci --include=dev
 COPY client/ ./
 RUN npm run build
 
@@ -11,7 +12,8 @@ FROM node:20-alpine AS server-builder
 RUN apk add --no-cache python3 make g++
 WORKDIR /app/server
 COPY server/package*.json ./
-RUN npm ci
+# Force install all deps including devDependencies (ignore NODE_ENV)
+RUN npm ci --include=dev
 COPY server/ ./
 RUN npm run build
 
