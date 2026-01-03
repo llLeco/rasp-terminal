@@ -6,8 +6,9 @@ RUN npm ci
 COPY client/ ./
 RUN npm run build
 
-# Build stage for server
+# Build stage for server (needs python/make/g++ for node-pty)
 FROM node:20-alpine AS server-builder
+RUN apk add --no-cache python3 make g++
 WORKDIR /app/server
 COPY server/package*.json ./
 RUN npm ci
@@ -17,7 +18,7 @@ RUN npm run build
 # Production stage
 FROM node:20-alpine AS production
 
-# Install dependencies for node-pty
+# Install dependencies for node-pty runtime
 RUN apk add --no-cache python3 make g++ bash
 
 WORKDIR /app
@@ -27,7 +28,7 @@ COPY --from=server-builder /app/server/dist ./dist
 COPY --from=server-builder /app/server/package*.json ./
 
 # Install production dependencies only
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Rebuild node-pty for the target platform
 RUN npm rebuild node-pty
