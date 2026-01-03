@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  raspterminal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: raspterminal
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - ACCESS_PASSWORD=${ACCESS_PASSWORD:-changeme}
+      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
+      - JWT_EXPIRATION=86400
+      - STATS_INTERVAL=5000
+      - STATS_RETENTION_DAYS=30
+      - TERMINAL_SHELL=/bin/bash
+    volumes:
+      # Persist SQLite database
+      - raspterminal-data:/app/data
+      # Access Docker socket for container management
+      - /var/run/docker.sock:/var/run/docker.sock
+    privileged: true
+    networks:
+      - raspterminal-network
+
+volumes:
+  raspterminal-data:
+
+networks:
+  raspterminal-network:
+    driver: bridge
