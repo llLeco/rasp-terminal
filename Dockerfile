@@ -2,38 +2,35 @@
 FROM node:20-alpine AS client-builder
 WORKDIR /app/client
 COPY client/package*.json ./
-# Force install all deps including devDependencies (ignore NODE_ENV)
 RUN npm ci --include=dev
 COPY client/ ./
 RUN npm run build
 
 # Build stage for server (needs python/make/g++ for node-pty)
+# This stage builds EVERYTHING including native modules
 FROM node:20-alpine AS server-builder
 RUN apk add --no-cache python3 make g++
 WORKDIR /app/server
 COPY server/package*.json ./
-# Force install all deps including devDependencies (ignore NODE_ENV)
+# Install ALL dependencies and build native modules here
 RUN npm ci --include=dev
 COPY server/ ./
 RUN npm run build
+# Now install production deps with native modules already compiled
+RUN rm -rf node_modules && npm ci --omit=dev
 
-# Production stage
+# Production stage - minimal, no gcc needed
 FROM node:20-alpine AS production
 
-# Install dependencies for node-pty runtime
-RUN apk add --no-cache python3 make g++ bash
+# Only need bash for terminal, node-pty is pre-compiled
+RUN apk add --no-cache bash
 
 WORKDIR /app
 
-# Copy server files
+# Copy pre-built server with compiled node-pty
 COPY --from=server-builder /app/server/dist ./dist
+COPY --from=server-builder /app/server/node_modules ./node_modules
 COPY --from=server-builder /app/server/package*.json ./
-
-# Install production dependencies only
-RUN npm ci --omit=dev
-
-# Rebuild node-pty for the target platform
-RUN npm rebuild node-pty
 
 # Copy client build
 COPY --from=client-builder /app/client/dist ./public
